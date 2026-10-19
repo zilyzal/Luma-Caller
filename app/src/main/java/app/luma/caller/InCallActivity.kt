@@ -20,7 +20,6 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.luma.caller.telecom.CallHub
 import app.luma.caller.telecom.CallNotifications
 import app.luma.caller.telecom.CallUi
-import app.luma.caller.telecom.Ringer
 import app.luma.caller.ui.InCallScreen
 import app.luma.caller.ui.IncomingScreen
 import app.luma.caller.ui.LumaBackground
@@ -62,6 +61,7 @@ class InCallActivity : ComponentActivity() {
 
 @Composable
 private fun CallRoot(onFinish: () -> Unit, openMain: (String?, String?) -> Unit) {
+    val ctx = androidx.compose.ui.platform.LocalContext.current
     val call by CallHub.primary.collectAsStateWithLifecycle()
     val muted by CallHub.muted.collectAsStateWithLifecycle()
     val speaker by CallHub.speaker.collectAsStateWithLifecycle()
@@ -85,16 +85,18 @@ private fun CallRoot(onFinish: () -> Unit, openMain: (String?, String?) -> Unit)
     if (call?.ringing == true) {
         IncomingScreen(
             call = shown,
-            onAnswer = { CallHub.answer() },
+            onAnswer = {
+                CallHub.answer()
+                CallNotifications.cancel(ctx)
+            },
             onDecline = { CallHub.reject() },
             onMessage = {
-                Ringer.stop()
+                CallHub.silence(ctx)
                 openMain(shown.number, null)
             },
-            onSilence = { Ringer.stop() }
+            onSilence = { CallHub.silence(ctx) }
         )
     } else {
-        val ctx = androidx.compose.ui.platform.LocalContext.current
         InCallScreen(
             call = shown,
             ended = call == null,

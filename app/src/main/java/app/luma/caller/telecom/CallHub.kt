@@ -6,6 +6,7 @@ import android.os.Looper
 import android.telecom.Call
 import android.telecom.CallAudioState
 import android.telecom.InCallService
+import android.telecom.TelecomManager
 import android.telecom.VideoProfile
 import app.luma.caller.data.Contact
 import app.luma.caller.data.Repo
@@ -81,9 +82,6 @@ object CallHub {
             }
             ?: calls.firstOrNull()
         foreground = fg
-        if (ctx != null) {
-            if (calls.any { it.state == Call.STATE_RINGING }) Ringer.start(ctx) else Ringer.stop()
-        }
         if (fg == null || ctx == null) {
             _primary.value = null
             return
@@ -102,6 +100,15 @@ object CallHub {
             sim = sim,
             callCount = calls.size
         )
+    }
+
+    /** Mutes the system ringer for the current incoming call without declining it. */
+    fun silence(ctx: Context) {
+        try {
+            ctx.getSystemService(TelecomManager::class.java).silenceRinger()
+        } catch (e: SecurityException) {
+            // Only the default dialer may silence the ringer.
+        }
     }
 
     fun answer() {

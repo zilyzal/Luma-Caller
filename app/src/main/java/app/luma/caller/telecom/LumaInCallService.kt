@@ -15,7 +15,6 @@ class LumaInCallService : InCallService() {
 
     override fun onDestroy() {
         CallHub.service = null
-        Ringer.stop()
         super.onDestroy()
     }
 
