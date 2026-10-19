@@ -264,7 +264,7 @@ fun InCallScreen(
 
             if (showKeys) {
                 LText(typed, 28, FontWeight.Light, align = TextAlign.Center, maxLines = 1, modifier = Modifier.height(40.dp))
-                DialPad(64.dp, onKey = {
+                DialPad(64.dp, 16.dp, onKey = {
                     typed += it
                     onDigit(it[0])
                 })

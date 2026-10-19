@@ -39,7 +39,7 @@ import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.graphics.drawscope.drawOutline
+import androidx.compose.ui.graphics.Outline
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.vector.PathParser
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
@@ -219,7 +219,19 @@ fun Modifier.pressable(
                 if (shape == null) {
                     drawRect(Color.White.copy(alpha = 0.14f))
                 } else {
-                    drawOutline(shape.createOutline(size, layoutDirection, this), Color.White.copy(alpha = 0.16f))
+                    val tintC = Color.White.copy(alpha = 0.16f)
+                    when (val o = shape.createOutline(size, layoutDirection, this)) {
+                        is Outline.Rectangle -> drawRect(tintC)
+                        is Outline.Rounded -> drawRoundRect(
+                            tintC,
+                            topLeft = Offset(o.roundRect.left, o.roundRect.top),
+                            size = androidx.compose.ui.geometry.Size(o.roundRect.width, o.roundRect.height),
+                            cornerRadius = androidx.compose.ui.geometry.CornerRadius(
+                                o.roundRect.topLeftCornerRadius.x, o.roundRect.topLeftCornerRadius.y
+                            )
+                        )
+                        is Outline.Generic -> drawPath(o.path, tintC)
+                    }
                 }
             }
         }
