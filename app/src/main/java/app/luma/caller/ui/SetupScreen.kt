@@ -115,8 +115,8 @@ private fun SetupRow(title: String, description: String, done: Boolean, action: 
                 Modifier
                     .height(40.dp)
                     .width(76.dp)
-                    .gradientFill(Accent, RoundedCornerShape(20.dp))
-                    .pressable(onClick = onClick),
+                    .pressable(shape = RoundedCornerShape(20.dp), onClick = onClick)
+                    .gradientFill(Accent, RoundedCornerShape(20.dp)),
                 contentAlignment = Alignment.Center
             ) { LText(action, 15, FontWeight.Bold) }
         }

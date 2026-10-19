@@ -39,6 +39,11 @@ import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextDirection
+import androidx.compose.ui.unit.LayoutDirection
+import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.luma.caller.data.Msg
@@ -103,7 +108,7 @@ fun ChatScreen(
                         onValueChange = onAddressChange,
                         singleLine = true,
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
-                        textStyle = TextStyle(color = Color.White, fontSize = 17.sp, fontWeight = FontWeight.SemiBold),
+                        textStyle = TextStyle(color = Color.White, fontSize = 17.sp, fontWeight = FontWeight.SemiBold, textDirection = TextDirection.Content),
                         cursorBrush = SolidColor(Color.White),
                         modifier = Modifier.fillMaxWidth()
                     )
@@ -117,7 +122,7 @@ fun ChatScreen(
                 }
             }
             Box(
-                Modifier.size(44.dp).gradientFill(SimGreen, CircleShape).pressable(enabled = address.isNotBlank(), onClick = onCall),
+                Modifier.size(44.dp).pressable(shape = CircleShape, enabled = address.isNotBlank(), onClick = onCall).gradientFill(SimGreen, CircleShape),
                 contentAlignment = Alignment.Center
             ) {
                 LumaIcon(LIcon.Call, size = 20.dp, strokeWidth = 2f)
@@ -157,7 +162,7 @@ fun ChatScreen(
                     value = draft,
                     onValueChange = { draft = it },
                     maxLines = 4,
-                    textStyle = TextStyle(color = Color.White, fontSize = 16.sp),
+                    textStyle = TextStyle(color = Color.White, fontSize = 16.sp, textDirection = TextDirection.Content),
                     cursorBrush = SolidColor(Color.White),
                     modifier = Modifier.fillMaxWidth()
                 )
@@ -166,11 +171,11 @@ fun ChatScreen(
             Box(
                 Modifier
                     .size(42.dp)
-                    .gradientFill(if (canSend) Accent else listOf(Color(0x33FFFFFF), Color(0x1FFFFFFF)), CircleShape)
-                    .pressable(enabled = canSend) {
+                    .pressable(shape = CircleShape, enabled = canSend) {
                         onSend(draft.trim())
                         draft = ""
-                    },
+                    }
+                    .gradientFill(if (canSend) Accent else listOf(Color(0x33FFFFFF), Color(0x1FFFFFFF)), CircleShape),
                 contentAlignment = Alignment.Center
             ) {
                 LumaIcon(LIcon.Send, size = 20.dp, strokeWidth = 2.2f)
@@ -179,21 +184,46 @@ fun ChatScreen(
     }
 }
 
+private fun isRtlText(text: String): Boolean {
+    for (ch in text) {
+        if (!Character.isLetter(ch)) continue
+        val d = Character.getDirectionality(ch)
+        return d == Character.DIRECTIONALITY_RIGHT_TO_LEFT ||
+            d == Character.DIRECTIONALITY_RIGHT_TO_LEFT_ARABIC
+    }
+    return false
+}
+
 @Composable
 private fun Bubble(m: Msg) {
-    Box(Modifier.fillMaxWidth(), contentAlignment = if (m.outgoing) Alignment.CenterEnd else Alignment.CenterStart) {
-        val shape = if (m.outgoing) RoundedCornerShape(22.dp, 22.dp, 6.dp, 22.dp) else RoundedCornerShape(22.dp, 22.dp, 22.dp, 6.dp)
-        Column(
-            Modifier
-                .widthIn(max = 290.dp)
-                .let {
-                    if (m.outgoing) it.gradientFill(Accent, shape) else it.glass(shape, fill = 0.16f, base = 0.25f)
-                }
-                .padding(horizontal = 16.dp, vertical = 10.dp)
-        ) {
-            LText(m.body, 16)
-            Spacer(Modifier.height(2.dp))
-            LText(formatClock(m.date), 11, color = Color.White.copy(alpha = 0.65f))
+    // Each bubble lays itself out in the direction of its own text, so Arabic reads right-to-left.
+    val rtl = remember(m.body) { isRtlText(m.body) }
+    val dir = if (rtl) LayoutDirection.Rtl else LayoutDirection.Ltr
+    // Outgoing sits on the right, incoming on the left, regardless of the text direction.
+    val outerAlign = if (m.outgoing) Alignment.CenterEnd else Alignment.CenterStart
+    Box(Modifier.fillMaxWidth(), contentAlignment = outerAlign) {
+        CompositionLocalProvider(LocalLayoutDirection provides dir) {
+            val big = 22.dp
+            val small = 6.dp
+            // tail corner stays on the sender's side (physical left/right)
+            val tailRight = m.outgoing
+            val shape = RoundedCornerShape(
+                topStart = big, topEnd = big,
+                bottomStart = if ((dir == LayoutDirection.Ltr) != tailRight) small else big,
+                bottomEnd = if ((dir == LayoutDirection.Ltr) == tailRight) small else big
+            )
+            Column(
+                Modifier
+                    .widthIn(max = 290.dp)
+                    .let {
+                        if (m.outgoing) it.gradientFill(Accent, shape) else it.glass(shape, fill = 0.16f, base = 0.25f)
+                    }
+                    .padding(horizontal = 16.dp, vertical = 10.dp)
+            ) {
+                LText(m.body, 16, align = TextAlign.Start)
+                Spacer(Modifier.height(2.dp))
+                LText(formatClock(m.date), 11, color = Color.White.copy(alpha = 0.65f), align = TextAlign.Start)
+            }
         }
     }
 }

@@ -114,7 +114,7 @@ fun MessagesScreen(
             SearchField(query, { query = it }, "Search messages", Modifier.weight(1f))
             Spacer(Modifier.width(12.dp))
             Box(
-                Modifier.size(48.dp).gradientFill(Accent, CircleShape).pressable(onClick = onNew),
+                Modifier.size(48.dp).pressable(shape = CircleShape, onClick = onNew).gradientFill(Accent, CircleShape),
                 contentAlignment = Alignment.Center
             ) {
                 LumaIcon(LIcon.Compose, size = 22.dp, strokeWidth = 1.9f)

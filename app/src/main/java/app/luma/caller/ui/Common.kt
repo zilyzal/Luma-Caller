@@ -1,6 +1,12 @@
 package app.luma.caller.ui
 
-import androidx.compose.foundation.background
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.runtime.getValue
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -23,6 +29,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
@@ -50,7 +57,7 @@ fun SearchField(value: String, onChange: (String) -> Unit, hint: String, modifie
                 value = value,
                 onValueChange = onChange,
                 singleLine = true,
-                textStyle = TextStyle(color = Color.White, fontSize = 16.sp),
+                textStyle = TextStyle(color = Color.White, fontSize = 16.sp, textDirection = TextDirection.Content),
                 cursorBrush = SolidColor(Color.White),
                 modifier = Modifier.fillMaxWidth()
             )
@@ -64,44 +71,53 @@ fun SearchField(value: String, onChange: (String) -> Unit, hint: String, modifie
 }
 
 @Composable
-fun BottomBar(selected: Tab, unread: Int, onSelect: (Tab) -> Unit, modifier: Modifier = Modifier) {
-    Row(
+fun BottomBar(selected: Tab, onSelect: (Tab) -> Unit, modifier: Modifier = Modifier) {
+    val count = Tab.entries.size
+    val index = selected.ordinal
+    BoxWithConstraints(
         modifier
             .padding(horizontal = 20.dp)
             .fillMaxWidth()
             .height(72.dp)
             .glass(RoundedCornerShape(36.dp), fill = 0.14f, base = 0.6f)
-            .padding(horizontal = 8.dp),
-        horizontalArrangement = Arrangement.SpaceAround,
-        verticalAlignment = Alignment.CenterVertically
     ) {
-        for (tab in Tab.entries) {
-            val isSelected = tab == selected
-            val tint = if (isSelected) Color.White else Color.White.copy(alpha = 0.72f)
-            val base = Modifier.width(72.dp).height(56.dp)
-            Column(
-                (if (isSelected) base.glass(RoundedCornerShape(28.dp), fill = 0.22f) else base)
-                    .pressable { onSelect(tab) },
-                verticalArrangement = Arrangement.Center,
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                Box {
+        val inner = maxWidth - 16.dp
+        val cell = inner / count
+        // The two edges of the pill chase the target with different stiffness, so it stretches like a liquid drop.
+        val left by animateDpAsState(
+            8.dp + cell * index,
+            spring(dampingRatio = 0.7f, stiffness = 380f), label = "pillL"
+        )
+        val right by animateDpAsState(
+            8.dp + cell * (index + 1),
+            spring(dampingRatio = 0.7f, stiffness = 170f), label = "pillR"
+        )
+        val pillW = (right - left).coerceAtLeast(cell * 0.8f)
+        Box(
+            Modifier
+                .offset(x = left, y = 8.dp)
+                .width(pillW)
+                .height(56.dp)
+                .glass(RoundedCornerShape(28.dp), fill = 0.26f, depth = 1.2f)
+        )
+        Row(Modifier.fillMaxSize().padding(horizontal = 8.dp)) {
+            for (tab in Tab.entries) {
+                val isSelected = tab == selected
+                val tint by animateColorAsState(
+                    if (isSelected) Color.White else Color.White.copy(alpha = 0.7f), label = "tint"
+                )
+                Column(
+                    Modifier
+                        .weight(1f)
+                        .fillMaxHeight()
+                        .pressable(shape = RoundedCornerShape(28.dp)) { onSelect(tab) },
+                    verticalArrangement = Arrangement.Center,
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
                     if (tab.icon == null) DotsIcon(tint = tint) else LumaIcon(tab.icon, tint = tint)
-                    if (tab == Tab.Messages && unread > 0) {
-                        Box(
-                            Modifier
-                                .align(Alignment.TopEnd)
-                                .offset(x = 8.dp, y = (-4).dp)
-                                .size(16.dp)
-                                .background(Brush.linearGradient(Accent), CircleShape),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            LText(if (unread > 9) "9+" else unread.toString(), 9, FontWeight.Bold)
-                        }
-                    }
+                    Spacer(Modifier.height(3.dp))
+                    LText(tab.label, 11, if (isSelected) FontWeight.SemiBold else FontWeight.Medium, tint)
                 }
-                Spacer(Modifier.height(3.dp))
-                LText(tab.label, 11, if (isSelected) FontWeight.SemiBold else FontWeight.Medium, tint)
             }
         }
     }

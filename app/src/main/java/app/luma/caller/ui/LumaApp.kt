@@ -1,6 +1,17 @@
 package app.luma.caller.ui
 
 import android.content.Intent
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.SizeTransform
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.togetherWith
 import android.provider.ContactsContract
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Box
@@ -115,11 +126,26 @@ fun LumaApp(launch: Launch?, openCall: () -> Unit, vm: LumaViewModel = viewModel
         return
     }
 
-    val unread = remember(threads) { threads.sumOf { it.unread } }
     val bannerPad = if (liveCall != null) 48.dp else 0.dp
 
     LumaBackground {
-        val current = chat
+        val lastChat = remember { arrayOfNulls<ChatTarget>(1) }
+        if (chat != null) lastChat[0] = chat
+        AnimatedContent(
+            targetState = chat != null,
+            transitionSpec = {
+                if (targetState) {
+                    (slideInHorizontally(spring(0.8f, 300f)) { it / 3 } + fadeIn(tween(260)) + scaleIn(spring(0.8f, 300f), 0.94f)) togetherWith
+                        (fadeOut(tween(180)) + scaleOut(tween(260), 0.92f))
+                } else {
+                    (fadeIn(tween(260)) + scaleIn(spring(0.8f, 300f), 0.92f)) togetherWith
+                        (slideOutHorizontally(tween(260)) { it / 3 } + fadeOut(tween(200)))
+                }.using(SizeTransform(clip = false))
+            },
+            label = "chat"
+        ) { inChat ->
+        val current = if (inChat) lastChat[0] else null
+        Box(Modifier.fillMaxSize()) {
         if (current != null) {
             ChatScreen(
                 title = current.title,
@@ -142,7 +168,16 @@ fun LumaApp(launch: Launch?, openCall: () -> Unit, vm: LumaViewModel = viewModel
             )
         } else {
             Box(Modifier.fillMaxSize().padding(top = bannerPad)) {
-                when (tab) {
+                AnimatedContent(
+                    targetState = tab,
+                    transitionSpec = {
+                        val dir = if (targetState.ordinal > initialState.ordinal) 1 else -1
+                        (slideInHorizontally(spring(0.75f, 260f)) { dir * it / 4 } + fadeIn(tween(280, 60)) + scaleIn(spring(0.8f, 260f), 0.94f)) togetherWith
+                            (slideOutHorizontally(spring(0.9f, 400f)) { -dir * it / 5 } + fadeOut(tween(160)) + scaleOut(tween(220), 0.94f))
+                    },
+                    label = "tabs"
+                ) { shownTab ->
+                when (shownTab) {
                     Tab.Keypad -> KeypadScreen(
                         number = dial,
                         sims = sims,
@@ -177,10 +212,10 @@ fun LumaApp(launch: Launch?, openCall: () -> Unit, vm: LumaViewModel = viewModel
                         onMessage = { c -> openChat(c.number, c.name, c.photoUri) }
                     )
                 }
+                }
             }
             BottomBar(
                 selected = tab,
-                unread = unread,
                 onSelect = { tab = it },
                 modifier = Modifier.align(Alignment.BottomCenter).navigationBarsPadding().padding(bottom = 16.dp)
             )
@@ -193,8 +228,8 @@ fun LumaApp(launch: Launch?, openCall: () -> Unit, vm: LumaViewModel = viewModel
                         .padding(horizontal = 16.dp, vertical = 4.dp)
                         .fillMaxWidth()
                         .height(40.dp)
+                        .pressable(shape = RoundedCornerShape(20.dp), onClick = openCall)
                         .gradientFill(SimGreen, RoundedCornerShape(20.dp))
-                        .pressable(onClick = openCall)
                         .padding(horizontal = 16.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
@@ -203,6 +238,8 @@ fun LumaApp(launch: Launch?, openCall: () -> Unit, vm: LumaViewModel = viewModel
                     LText("Return to call · ${live.title}", 14, FontWeight.SemiBold, maxLines = 1)
                 }
             }
+        }
+        }
         }
     }
 }

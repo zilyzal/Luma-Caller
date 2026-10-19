@@ -112,8 +112,8 @@ private fun ActionButton(label: String, onClick: () -> Unit, colors: List<Color>
         Box(
             Modifier
                 .size(60.dp)
-                .let { if (colors == null) it.glass(CircleShape, fill = 0.16f, base = 0.2f) else it.gradientFill(colors, CircleShape) }
-                .pressable(onClick = onClick),
+                .pressable(shape = CircleShape, onClick = onClick)
+                .let { if (colors == null) it.glass(CircleShape, fill = 0.16f, base = 0.2f) else it.gradientFill(colors, CircleShape) },
             contentAlignment = Alignment.Center
         ) { icon() }
         Spacer(Modifier.height(8.dp))
@@ -212,8 +212,8 @@ private fun ControlButton(label: String, active: Boolean, onClick: () -> Unit, i
         Box(
             Modifier
                 .size(76.dp)
-                .glass(CircleShape, fill = if (active) 0.32f else 0.14f, base = 0.2f)
-                .pressable(onClick = onClick),
+                .pressable(shape = CircleShape, onClick = onClick)
+                .glass(CircleShape, fill = if (active) 0.32f else 0.14f, base = 0.2f),
             contentAlignment = Alignment.Center
         ) { icon() }
         Spacer(Modifier.height(8.dp))
@@ -286,7 +286,7 @@ fun InCallScreen(
 
             Spacer(Modifier.height(28.dp))
             Box(
-                Modifier.size(84.dp).gradientFill(DangerRed, CircleShape).pressable(onClick = onEnd),
+                Modifier.size(84.dp).pressable(shape = CircleShape, onClick = onEnd).gradientFill(DangerRed, CircleShape),
                 contentAlignment = Alignment.Center
             ) {
                 LumaIcon(LIcon.Call, Modifier.rotate(135f), size = 34.dp, strokeWidth = 1.9f)

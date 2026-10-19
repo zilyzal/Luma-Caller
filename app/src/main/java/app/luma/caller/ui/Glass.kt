@@ -1,7 +1,16 @@
 package app.luma.caller.ui
 
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.combinedClickable
@@ -10,18 +19,17 @@ import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.BasicText
-import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.Image
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -31,11 +39,15 @@ import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.drawscope.drawOutline
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.vector.PathParser
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextDirection
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -51,6 +63,13 @@ val MissedPink = Color(0xFFFF8FA3)
 
 @Composable
 fun LumaBackground(modifier: Modifier = Modifier, content: @Composable BoxScope.() -> Unit) {
+    val transition = rememberInfiniteTransition(label = "backdrop")
+    val drift by transition.animateFloat(
+        initialValue = 0f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(tween(20000, easing = LinearEasing), RepeatMode.Reverse),
+        label = "drift"
+    )
     Box(
         modifier
             .fillMaxSize()
@@ -79,57 +98,145 @@ fun LumaBackground(modifier: Modifier = Modifier, content: @Composable BoxScope.
                         radius = w * 0.9f
                     )
                 )
+                // Slow-moving light behind the glass so its refraction always has something to catch.
+                drawRect(
+                    Brush.radialGradient(
+                        listOf(Color(0x33FF5FD2), Color.Transparent),
+                        center = Offset(w * (0.15f + 0.5f * drift), h * (0.62f + 0.1f * drift)),
+                        radius = w * 0.7f
+                    )
+                )
+                drawRect(
+                    Brush.radialGradient(
+                        listOf(Color(0x2E22D3EE), Color.Transparent),
+                        center = Offset(w * (0.95f - 0.55f * drift), h * (0.18f + 0.25f * drift)),
+                        radius = w * 0.65f
+                    )
+                )
             },
         content = content
     )
 }
 
-/** Liquid-glass surface: translucent fill, soft highlight and a bright top edge. */
-fun Modifier.glass(shape: Shape, fill: Float = 0.14f, base: Float = 0f): Modifier = this
+/** Specular bloom, bottom rim light and a faint colour dispersion: what makes a surface read as thick glass. */
+private fun Modifier.glassHighlights(strength: Float = 1f): Modifier = this.drawBehind {
+    val w = size.width
+    val h = size.height
+    val reach = maxOf(w, h)
+    drawRect(
+        Brush.radialGradient(
+            listOf(Color.White.copy(alpha = 0.26f * strength), Color.Transparent),
+            center = Offset(w * 0.22f, 0f),
+            radius = reach * 0.7f
+        )
+    )
+    drawRect(
+        Brush.verticalGradient(
+            0.6f to Color.Transparent,
+            1f to Color.White.copy(alpha = 0.13f * strength)
+        )
+    )
+    drawRect(
+        Brush.radialGradient(
+            listOf(Color(0x2E7AE7FF), Color.Transparent),
+            center = Offset(w, h),
+            radius = reach * 0.6f
+        )
+    )
+}
+
+private val RimBrush = Brush.linearGradient(
+    listOf(Color(0xCCFFFFFF), Color(0x2EB8F0FF), Color(0x14FFFFFF), Color(0x70FFC8F5))
+)
+private val InnerRimBrush = Brush.verticalGradient(
+    0f to Color(0x59FFFFFF),
+    0.35f to Color.Transparent,
+    0.7f to Color.Transparent,
+    1f to Color(0x24FFFFFF)
+)
+
+/** Liquid-glass surface: floating shadow, tinted body, bright specular, chromatic rim and an inner edge. */
+fun Modifier.glass(shape: Shape, fill: Float = 0.14f, base: Float = 0f, depth: Float = 1f): Modifier = this
+    .shadow(
+        elevation = (10f * depth).dp,
+        shape = shape,
+        clip = false,
+        ambientColor = Color(0x40000020),
+        spotColor = Color(0x66101050)
+    )
     .clip(shape)
     .background(Color(0xFF0A0F2E).copy(alpha = base))
     .background(
         Brush.verticalGradient(
-            listOf(Color.White.copy(alpha = fill + 0.07f), Color.White.copy(alpha = fill - 0.03f))
+            listOf(Color.White.copy(alpha = fill + 0.08f), Color.White.copy(alpha = fill - 0.04f))
         )
     )
-    .border(
-        1.dp,
-        Brush.verticalGradient(listOf(Color.White.copy(alpha = 0.55f), Color.White.copy(alpha = 0.12f))),
-        shape
-    )
+    .glassHighlights()
+    .border(1.dp, RimBrush, shape)
+    .padding(1.dp)
+    .border(0.6.dp, InnerRimBrush, shape)
 
+/** Solid-colour glass (call, decline, accent buttons) with a coloured glow underneath. */
 fun Modifier.gradientFill(colors: List<Color>, shape: Shape): Modifier = this
+    .shadow(
+        elevation = 12.dp,
+        shape = shape,
+        clip = false,
+        ambientColor = colors.first().copy(alpha = 0.35f),
+        spotColor = colors.first().copy(alpha = 0.8f)
+    )
     .clip(shape)
     .background(Brush.linearGradient(colors))
-    .border(
-        1.dp,
-        Brush.verticalGradient(listOf(Color.White.copy(alpha = 0.65f), Color.White.copy(alpha = 0.2f))),
-        shape
-    )
+    .glassHighlights(1.15f)
+    .border(1.dp, RimBrush, shape)
+    .padding(1.dp)
+    .border(0.6.dp, InnerRimBrush, shape)
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun Modifier.pressable(
+    shape: Shape? = null,
     enabled: Boolean = true,
     onLongClick: (() -> Unit)? = null,
     onClick: () -> Unit
 ): Modifier {
     val source = remember { MutableInteractionSource() }
     val pressed by source.collectIsPressedAsState()
-    val scale by animateFloatAsState(if (pressed) 0.93f else 1f, label = "press")
+    val scale by animateFloatAsState(
+        targetValue = if (pressed) 0.92f else 1f,
+        animationSpec = spring(dampingRatio = 0.5f, stiffness = 500f),
+        label = "press"
+    )
+    val haptics = LocalHapticFeedback.current
     return this
         .graphicsLayer {
             scaleX = scale
             scaleY = scale
-            alpha = if (pressed) 0.85f else 1f
+        }
+        .drawWithContent {
+            drawContent()
+            if (pressed) {
+                if (shape == null) {
+                    drawRect(Color.White.copy(alpha = 0.14f))
+                } else {
+                    drawOutline(shape.createOutline(size, layoutDirection, this), Color.White.copy(alpha = 0.16f))
+                }
+            }
         }
         .combinedClickable(
             interactionSource = source,
             indication = null,
             enabled = enabled,
-            onLongClick = onLongClick,
-            onClick = onClick
+            onLongClick = onLongClick?.let { long ->
+                {
+                    haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                    long()
+                }
+            },
+            onClick = {
+                haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                onClick()
+            }
         )
 }
 
@@ -152,7 +259,9 @@ fun LText(
             fontSize = size.sp,
             fontWeight = weight,
             textAlign = align,
-            letterSpacing = spacing.sp
+            textDirection = TextDirection.Content,
+            letterSpacing = spacing.sp,
+            lineHeight = (size * 1.2f).sp
         ),
         maxLines = maxLines,
         overflow = TextOverflow.Ellipsis
@@ -220,28 +329,18 @@ fun DotsIcon(modifier: Modifier = Modifier, dp: Dp = 24.dp, tint: Color = Color.
     }
 }
 
-/** Round glass button holding an icon. */
+/** Six-spoke asterisk drawn by hand so it sits exactly in the middle of its key. */
 @Composable
-fun GlassCircleButton(
-    iconPath: String,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-    size: Dp = 76.dp,
-    iconSize: Dp = 30.dp,
-    active: Boolean = false
-) {
-    Box(
-        modifier
-            .size(size)
-            .glass(CircleShape, fill = if (active) 0.30f else 0.14f)
-            .pressable(onClick = onClick),
-        contentAlignment = Alignment.Center
-    ) {
-        LumaIcon(iconPath, size = iconSize)
+fun AsteriskIcon(modifier: Modifier = Modifier, dp: Dp = 22.dp, tint: Color = Color.White) {
+    Canvas(modifier.size(dp)) {
+        val c = Offset(size.width / 2f, size.height / 2f)
+        val r = size.width / 2f
+        val stroke = size.width * 0.14f
+        for (deg in intArrayOf(90, 30, 150)) {
+            val rad = Math.toRadians(deg.toDouble())
+            val dx = (kotlin.math.cos(rad) * r).toFloat()
+            val dy = (kotlin.math.sin(rad) * r).toFloat()
+            drawLine(tint, Offset(c.x - dx, c.y - dy), Offset(c.x + dx, c.y + dy), stroke, StrokeCap.Round)
+        }
     }
-}
-
-@Composable
-fun FillBox(modifier: Modifier = Modifier, content: @Composable BoxScope.() -> Unit) {
-    Box(modifier.fillMaxSize(), content = content)
 }
