@@ -196,6 +196,7 @@ fun Modifier.gradientFill(colors: List<Color>, shape: Shape): Modifier = this
 @Composable
 fun Modifier.pressable(
     shape: Shape? = null,
+    overlay: Boolean = true,
     enabled: Boolean = true,
     onLongClick: (() -> Unit)? = null,
     onClick: () -> Unit
@@ -215,7 +216,7 @@ fun Modifier.pressable(
         }
         .drawWithContent {
             drawContent()
-            if (pressed) {
+            if (pressed && overlay) {
                 if (shape == null) {
                     drawRect(Color.White.copy(alpha = 0.14f))
                 } else {

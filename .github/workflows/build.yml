@@ -74,3 +74,10 @@ jobs:
             --title "Luma (latest build)" \
             --notes "Signed release APK built from commit ${GITHUB_SHA::7}. Install it on your phone, then set Luma as the default phone and messages app." \
             --target "$GITHUB_SHA"
+
+          VERSION=$(grep -oP 'versionName = "\K[0-9]+\.[0-9]+' app/build.gradle.kts)
+          gh release delete "v$VERSION" --yes --cleanup-tag || true
+          gh release create "v$VERSION" Luma.apk \
+            --title "Luma $VERSION" \
+            --notes "Luma $VERSION - signed release APK (commit ${GITHUB_SHA::7})." \
+            --target "$GITHUB_SHA"

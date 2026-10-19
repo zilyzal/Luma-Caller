@@ -8,6 +8,7 @@ import android.os.Bundle
 import android.telecom.PhoneAccount
 import android.telecom.PhoneAccountHandle
 import android.telecom.TelecomManager
+import android.telephony.SubscriptionManager
 
 object Sims {
     /** SIM-backed calling accounts in slot order; empty if permission is missing. */
@@ -24,6 +25,20 @@ object Sims {
             sims.ifEmpty { all }
         } catch (e: SecurityException) {
             emptyList()
+        }
+    }
+
+    /** Telephony subscription id behind a calling account, or null when it can't be resolved. */
+    @Suppress("MissingPermission")
+    fun subscriptionId(ctx: Context, handle: PhoneAccountHandle?): Int? {
+        if (handle == null) return null
+        return try {
+            val subs = ctx.getSystemService(SubscriptionManager::class.java)
+                .activeSubscriptionInfoList.orEmpty().sortedBy { it.simSlotIndex }
+            subs.firstOrNull { it.iccId == handle.id || it.subscriptionId.toString() == handle.id }?.subscriptionId
+                ?: handles(ctx).indexOfFirst { it.id == handle.id }.takeIf { it >= 0 }?.let { subs.getOrNull(it)?.subscriptionId }
+        } catch (e: SecurityException) {
+            null
         }
     }
 

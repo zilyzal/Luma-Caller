@@ -1,6 +1,10 @@
 package app.luma.caller.ui
 
-import android.content.Intent
+import android.Manifest
+import android.content.pm.PackageManager
+import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.SizeTransform
 import androidx.compose.animation.core.spring
@@ -12,7 +16,6 @@ import androidx.compose.animation.scaleOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
-import android.provider.ContactsContract
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
@@ -73,6 +76,27 @@ fun LumaApp(launch: Launch?, openCall: () -> Unit, vm: LumaViewModel = viewModel
     var chat by remember { mutableStateOf<ChatTarget?>(null) }
     var messages by remember { mutableStateOf<List<Msg>>(emptyList()) }
     var resumeTick by remember { mutableIntStateOf(0) }
+
+    var pendingName by remember { mutableStateOf<Pair<String, String>?>(null) }
+    fun doSave(name: String, number: String) {
+        vm.addContact(name, number) { ok ->
+            Toast.makeText(ctx, if (ok) "Saved $name" else "Couldn't save contact", Toast.LENGTH_SHORT).show()
+        }
+    }
+    val writeLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        val p = pendingName
+        pendingName = null
+        if (granted && p != null) doSave(p.first, p.second)
+        else if (p != null) Toast.makeText(ctx, "Contacts permission is needed to save", Toast.LENGTH_SHORT).show()
+    }
+    fun saveContact(name: String, number: String) {
+        if (ctx.checkSelfPermission(Manifest.permission.WRITE_CONTACTS) == PackageManager.PERMISSION_GRANTED) {
+            doSave(name, number)
+        } else {
+            pendingName = name to number
+            writeLauncher.launch(Manifest.permission.WRITE_CONTACTS)
+        }
+    }
 
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
         resumeTick++
@@ -154,8 +178,9 @@ fun LumaApp(launch: Launch?, openCall: () -> Unit, vm: LumaViewModel = viewModel
                 messages = messages,
                 isNew = current.isNew,
                 onAddressChange = { chat = current.copy(address = it, title = it) },
-                onSend = { text ->
-                    vm.send(current.address, text)
+                simCount = sims.size,
+                onSend = { text, simIdx ->
+                    vm.send(current.address, text, simIdx?.let { Sims.subscriptionId(ctx, sims.getOrNull(it)) })
                     if (current.isNew) {
                         chat = current.copy(isNew = false, title = nameFor(current.address)?.name ?: current.address)
                     }
@@ -188,13 +213,7 @@ fun LumaApp(launch: Launch?, openCall: () -> Unit, vm: LumaViewModel = viewModel
                                 dial = ""
                             }
                         },
-                        onAddContact = {
-                            ctx.startActivity(
-                                Intent(ContactsContract.Intents.Insert.ACTION)
-                                    .setType(ContactsContract.RawContacts.CONTENT_TYPE)
-                                    .putExtra(ContactsContract.Intents.Insert.PHONE, dial)
-                            )
-                        }
+                        onAddContact = { name -> saveContact(name, dial) }
                     )
                     Tab.Recents -> RecentsScreen(
                         calls = calls,

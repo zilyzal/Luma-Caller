@@ -110,7 +110,7 @@ fun BottomBar(selected: Tab, onSelect: (Tab) -> Unit, modifier: Modifier = Modif
                     Modifier
                         .weight(1f)
                         .fillMaxHeight()
-                        .pressable(shape = RoundedCornerShape(28.dp)) { onSelect(tab) },
+                        .pressable(overlay = false) { onSelect(tab) },
                     verticalArrangement = Arrangement.Center,
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {

@@ -205,10 +205,10 @@ class Repo(private val ctx: Context) {
     }
 
     @Suppress("DEPRECATION")
-    fun sendSms(address: String, body: String): Boolean {
+    fun sendSms(address: String, body: String, subId: Int? = null): Boolean {
         if (!has(Manifest.permission.SEND_SMS) || body.isBlank() || address.isBlank()) return false
         return try {
-            val manager = SmsManager.getDefault()
+            val manager = if (subId != null) SmsManager.getSmsManagerForSubscriptionId(subId) else SmsManager.getDefault()
             val parts = manager.divideMessage(body)
             manager.sendMultipartTextMessage(address, null, parts, null, null)
             if (isDefaultSmsApp()) {
@@ -221,6 +221,34 @@ class Repo(private val ctx: Context) {
                 }
                 resolver.insert(Telephony.Sms.Sent.CONTENT_URI, values)
             }
+            true
+        } catch (e: Exception) {
+            false
+        }
+    }
+
+    /** Saves a new contact on the device with just a name and a number. */
+    fun addContact(name: String, number: String): Boolean {
+        if (!has(Manifest.permission.WRITE_CONTACTS) || name.isBlank() || number.isBlank()) return false
+        return try {
+            val ops = arrayListOf(
+                android.content.ContentProviderOperation.newInsert(ContactsContract.RawContacts.CONTENT_URI)
+                    .withValue(ContactsContract.RawContacts.ACCOUNT_TYPE, null)
+                    .withValue(ContactsContract.RawContacts.ACCOUNT_NAME, null)
+                    .build(),
+                android.content.ContentProviderOperation.newInsert(ContactsContract.Data.CONTENT_URI)
+                    .withValueBackReference(ContactsContract.Data.RAW_CONTACT_ID, 0)
+                    .withValue(ContactsContract.Data.MIMETYPE, ContactsContract.CommonDataKinds.StructuredName.CONTENT_ITEM_TYPE)
+                    .withValue(ContactsContract.CommonDataKinds.StructuredName.DISPLAY_NAME, name.trim())
+                    .build(),
+                android.content.ContentProviderOperation.newInsert(ContactsContract.Data.CONTENT_URI)
+                    .withValueBackReference(ContactsContract.Data.RAW_CONTACT_ID, 0)
+                    .withValue(ContactsContract.Data.MIMETYPE, Phone.CONTENT_ITEM_TYPE)
+                    .withValue(Phone.NUMBER, number.trim())
+                    .withValue(Phone.TYPE, Phone.TYPE_MOBILE)
+                    .build()
+            )
+            resolver.applyBatch(ContactsContract.AUTHORITY, ops)
             true
         } catch (e: Exception) {
             false

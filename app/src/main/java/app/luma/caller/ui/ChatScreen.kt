@@ -75,7 +75,8 @@ fun ChatScreen(
     messages: List<Msg>,
     isNew: Boolean,
     onAddressChange: (String) -> Unit,
-    onSend: (String) -> Unit,
+    simCount: Int,
+    onSend: (String, Int?) -> Unit,
     onCall: () -> Unit,
     onBack: () -> Unit,
     modifier: Modifier = Modifier
@@ -168,19 +169,37 @@ fun ChatScreen(
                 )
             }
             val canSend = draft.isNotBlank() && address.isNotBlank()
-            Box(
-                Modifier
-                    .size(42.dp)
-                    .pressable(shape = CircleShape, enabled = canSend) {
-                        onSend(draft.trim())
-                        draft = ""
-                    }
-                    .gradientFill(if (canSend) Accent else listOf(Color(0x33FFFFFF), Color(0x1FFFFFFF)), CircleShape),
-                contentAlignment = Alignment.Center
-            ) {
-                LumaIcon(LIcon.Send, size = 20.dp, strokeWidth = 2.2f)
+            val off = listOf(Color(0x33FFFFFF), Color(0x1FFFFFFF))
+            if (simCount >= 2) {
+                SendButton(if (canSend) SimGreen else off, canSend) {
+                    onSend(draft.trim(), 0)
+                    draft = ""
+                }
+                Spacer(Modifier.width(8.dp))
+                SendButton(if (canSend) SimBlue else off, canSend) {
+                    onSend(draft.trim(), 1)
+                    draft = ""
+                }
+            } else {
+                SendButton(if (canSend) Accent else off, canSend) {
+                    onSend(draft.trim(), null)
+                    draft = ""
+                }
             }
         }
+    }
+}
+
+@Composable
+private fun SendButton(colors: List<Color>, enabled: Boolean, onClick: () -> Unit) {
+    Box(
+        Modifier
+            .size(42.dp)
+            .pressable(shape = CircleShape, enabled = enabled, onClick = onClick)
+            .gradientFill(colors, CircleShape),
+        contentAlignment = Alignment.Center
+    ) {
+        LumaIcon(LIcon.Send, size = 20.dp, strokeWidth = 2.2f)
     }
 }
 

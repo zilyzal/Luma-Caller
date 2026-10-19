@@ -55,9 +55,17 @@ class LumaViewModel(app: Application) : AndroidViewModel(app) {
 
     fun threadIdFor(address: String): Long? = repo.threadIdFor(address, _threads.value)
 
-    fun send(address: String, body: String) {
+    fun send(address: String, body: String, subId: Int? = null) {
         viewModelScope.launch(Dispatchers.IO) {
-            if (repo.sendSms(address, body)) refresh()
+            if (repo.sendSms(address, body, subId)) refresh()
+        }
+    }
+
+    fun addContact(name: String, number: String, done: (Boolean) -> Unit) {
+        viewModelScope.launch(Dispatchers.IO) {
+            val ok = repo.addContact(name, number)
+            if (ok) refresh()
+            withContext(Dispatchers.Main) { done(ok) }
         }
     }
 }
