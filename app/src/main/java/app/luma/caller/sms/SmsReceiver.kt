@@ -65,7 +65,7 @@ class SmsReceiver : BroadcastReceiver() {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
         val notification = Notification.Builder(ctx, CHANNEL)
-            .setSmallIcon(R.drawable.ic_stat_luma)
+            .setSmallIcon(R.drawable.ic_stat_message)
             .setContentTitle(title)
             .setContentText(body)
             .setStyle(Notification.BigTextStyle().bigText(body))
