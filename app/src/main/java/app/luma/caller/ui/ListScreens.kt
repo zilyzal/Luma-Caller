@@ -32,6 +32,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import app.luma.caller.data.CallEntry
 import app.luma.caller.data.Contact
+import app.luma.caller.data.canonNumber
+import app.luma.caller.data.looksNumeric
 import app.luma.caller.data.ThreadItem
 
 private val ListBottomPadding = 120.dp
@@ -53,7 +55,15 @@ fun RecentsScreen(
     var query by rememberSaveable { mutableStateOf("") }
     val shown = remember(calls, query) {
         if (query.isBlank()) calls
-        else calls.filter { it.title.contains(query, true) || it.number.contains(query) }
+        else {
+            val q = query.trim()
+            if (looksNumeric(q)) {
+                val cq = canonNumber(q)
+                calls.filter { canonNumber(it.number).contains(cq) }
+            } else {
+                calls.filter { it.title.contains(q, true) }
+            }
+        }
     }
     Column(modifier.fillMaxSize().statusBarsPadding()) {
         SearchField(query, { query = it }, "Search calls and contacts", Modifier.padding(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 8.dp).fillMaxWidth())
@@ -102,8 +112,14 @@ fun MessagesScreen(
     var query by rememberSaveable { mutableStateOf("") }
     val shown = remember(threads, query) {
         if (query.isBlank()) threads
-        else threads.filter {
-            it.title.contains(query, true) || it.snippet.contains(query, true) || it.address.contains(query)
+        else {
+            val q = query.trim()
+            if (looksNumeric(q)) {
+                val cq = canonNumber(q)
+                threads.filter { canonNumber(it.address).contains(cq) || it.snippet.contains(q) }
+            } else {
+                threads.filter { it.title.contains(q, true) || it.snippet.contains(q, true) }
+            }
         }
     }
     Column(modifier.fillMaxSize().statusBarsPadding()) {
@@ -173,7 +189,16 @@ fun ContactsScreen(
     var query by rememberSaveable { mutableStateOf("") }
     val shown = remember(contacts, query) {
         if (query.isBlank()) contacts
-        else contacts.filter { it.name.contains(query, true) || it.number.contains(query) }
+        else {
+            val q = query.trim()
+            if (looksNumeric(q)) {
+                val cq = canonNumber(q)
+                contacts.filter { c -> c.canonNumbers.any { it.contains(cq) } }
+            } else {
+                val lq = q.lowercase()
+                contacts.filter { it.nameLower.contains(lq) }
+            }
+        }
     }
     Column(modifier.fillMaxSize().statusBarsPadding()) {
         SearchField(query, { query = it }, "Search contacts", Modifier.padding(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 8.dp).fillMaxWidth())

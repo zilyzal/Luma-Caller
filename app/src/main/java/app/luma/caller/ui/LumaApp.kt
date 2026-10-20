@@ -108,10 +108,12 @@ fun LumaApp(launch: Launch?, openCall: () -> Unit, vm: LumaViewModel = viewModel
         Perms.missing(ctx).isNotEmpty() || !Perms.dialerHeld(ctx) || !Perms.smsHeld(ctx)
     }
 
-    fun nameFor(address: String): Contact? {
-        val key = normalizeNumber(address)
-        return contacts.firstOrNull { normalizeNumber(it.number) == key }
+    val byNumber = remember(contacts) {
+        HashMap<String, Contact>(contacts.size * 3).also { m ->
+            for (c in contacts) for (n in c.numbers) m.putIfAbsent(normalizeNumber(n), c)
+        }
     }
+    fun nameFor(address: String): Contact? = byNumber[normalizeNumber(address)]
 
     fun openChat(address: String, title: String? = null, photo: String? = null) {
         val c = nameFor(address)
@@ -205,6 +207,7 @@ fun LumaApp(launch: Launch?, openCall: () -> Unit, vm: LumaViewModel = viewModel
                 when (shownTab) {
                     Tab.Keypad -> KeypadScreen(
                         number = dial,
+                        savedName = if (dial.count { it.isDigit() } >= 7) nameFor(dial)?.name else null,
                         sims = sims,
                         onNumber = { dial = it },
                         onCall = { handle ->

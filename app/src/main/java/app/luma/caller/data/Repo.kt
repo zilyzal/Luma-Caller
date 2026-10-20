@@ -30,8 +30,7 @@ class Repo(private val ctx: Context) {
 
     fun contacts(): List<Contact> {
         if (!has(Manifest.permission.READ_CONTACTS)) return emptyList()
-        val out = ArrayList<Contact>()
-        val seen = HashSet<Long>()
+        val order = LinkedHashMap<Long, Triple<String, String?, ArrayList<String>>>()
         try {
             resolver.query(
                 Phone.CONTENT_URI,
@@ -42,21 +41,23 @@ class Repo(private val ctx: Context) {
             )?.use { c ->
                 while (c.moveToNext()) {
                     val id = c.getLong(0)
-                    if (!seen.add(id)) continue
                     val name = c.getString(1) ?: continue
                     val number = c.getString(2) ?: continue
-                    out.add(Contact(id, name, number, c.getString(3)))
+                    val entry = order.getOrPut(id) { Triple(name, c.getString(3), ArrayList()) }
+                    if (entry.third.none { normalizeNumber(it) == normalizeNumber(number) }) entry.third.add(number)
                 }
             }
         } catch (e: SecurityException) {
             return emptyList()
         }
+        val out = ArrayList<Contact>(order.size)
+        for ((id, e) in order) out.add(Contact(id, e.first, e.third[0], e.second, e.third))
         return out
     }
 
     fun index(contacts: List<Contact>): Map<String, Contact> {
-        val map = HashMap<String, Contact>(contacts.size * 2)
-        for (c in contacts) map.putIfAbsent(normalizeNumber(c.number), c)
+        val map = HashMap<String, Contact>(contacts.size * 3)
+        for (c in contacts) for (n in c.numbers) map.putIfAbsent(normalizeNumber(n), c)
         return map
     }
 

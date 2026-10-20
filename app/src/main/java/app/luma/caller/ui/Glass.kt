@@ -67,55 +67,47 @@ fun LumaBackground(modifier: Modifier = Modifier, content: @Composable BoxScope.
     val drift by transition.animateFloat(
         initialValue = 0f,
         targetValue = 1f,
-        animationSpec = infiniteRepeatable(tween(20000, easing = LinearEasing), RepeatMode.Reverse),
+        animationSpec = infiniteRepeatable(tween(24000, easing = LinearEasing), RepeatMode.Reverse),
         label = "drift"
     )
-    Box(
-        modifier
-            .fillMaxSize()
-            .background(LumaBg)
-            .drawBehind {
-                val w = size.width
-                val h = size.height
-                drawRect(
-                    Brush.radialGradient(
-                        listOf(Color(0x805059FF), Color.Transparent),
-                        center = Offset(0f, 0f),
-                        radius = w * 1.25f
+    Box(modifier.fillMaxSize().background(LumaBg)) {
+        // Static glow lives in its own cached layer, so only the two moving lights are redrawn each frame.
+        Box(
+            Modifier
+                .fillMaxSize()
+                .graphicsLayer()
+                .drawBehind {
+                    val w = size.width
+                    val h = size.height
+                    drawRect(Brush.radialGradient(listOf(Color(0x805059FF), Color.Transparent), Offset(0f, 0f), w * 1.25f))
+                    drawRect(Brush.radialGradient(listOf(Color(0x6100BEB9), Color.Transparent), Offset(w, h), w * 1.15f))
+                    drawRect(Brush.radialGradient(listOf(Color(0x47A050FF), Color.Transparent), Offset(w, h * 0.35f), w * 0.9f))
+                }
+        )
+        Box(
+            Modifier
+                .fillMaxSize()
+                .drawBehind {
+                    val w = size.width
+                    val h = size.height
+                    drawRect(
+                        Brush.radialGradient(
+                            listOf(Color(0x33FF5FD2), Color.Transparent),
+                            center = Offset(w * (0.15f + 0.5f * drift), h * (0.62f + 0.1f * drift)),
+                            radius = w * 0.7f
+                        )
                     )
-                )
-                drawRect(
-                    Brush.radialGradient(
-                        listOf(Color(0x6100BEB9), Color.Transparent),
-                        center = Offset(w, h),
-                        radius = w * 1.15f
+                    drawRect(
+                        Brush.radialGradient(
+                            listOf(Color(0x2E22D3EE), Color.Transparent),
+                            center = Offset(w * (0.95f - 0.55f * drift), h * (0.18f + 0.25f * drift)),
+                            radius = w * 0.65f
+                        )
                     )
-                )
-                drawRect(
-                    Brush.radialGradient(
-                        listOf(Color(0x47A050FF), Color.Transparent),
-                        center = Offset(w, h * 0.35f),
-                        radius = w * 0.9f
-                    )
-                )
-                // Slow-moving light behind the glass so its refraction always has something to catch.
-                drawRect(
-                    Brush.radialGradient(
-                        listOf(Color(0x33FF5FD2), Color.Transparent),
-                        center = Offset(w * (0.15f + 0.5f * drift), h * (0.62f + 0.1f * drift)),
-                        radius = w * 0.7f
-                    )
-                )
-                drawRect(
-                    Brush.radialGradient(
-                        listOf(Color(0x2E22D3EE), Color.Transparent),
-                        center = Offset(w * (0.95f - 0.55f * drift), h * (0.18f + 0.25f * drift)),
-                        radius = w * 0.65f
-                    )
-                )
-            },
-        content = content
-    )
+                }
+        )
+        content()
+    }
 }
 
 /** Specular bloom, bottom rim light and a faint colour dispersion: what makes a surface read as thick glass. */

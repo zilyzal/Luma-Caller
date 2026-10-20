@@ -86,6 +86,7 @@ fun DialPad(size: Dp, gap: Dp, onKey: (String) -> Unit, modifier: Modifier = Mod
 @Composable
 fun KeypadScreen(
     number: String,
+    savedName: String?,
     sims: List<PhoneAccountHandle>,
     onNumber: (String) -> Unit,
     onCall: (PhoneAccountHandle?) -> Unit,
@@ -116,7 +117,9 @@ fun KeypadScreen(
                 )
             }
             Box(Modifier.height(28.dp), contentAlignment = Alignment.Center) {
-                if (number.isNotEmpty()) {
+                if (savedName != null) {
+                    LText(savedName, 16, FontWeight.SemiBold, SoftBlue, maxLines = 1, modifier = Modifier.padding(horizontal = 56.dp))
+                } else if (number.isNotEmpty()) {
                     LText(
                         "Add to contacts", 14, FontWeight.Medium, SoftBlue,
                         modifier = Modifier.pressable { showAdd = true }
