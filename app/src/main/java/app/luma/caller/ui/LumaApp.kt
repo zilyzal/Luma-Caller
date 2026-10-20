@@ -220,6 +220,8 @@ fun LumaApp(launch: Launch?, openCall: () -> Unit, vm: LumaViewModel = viewModel
                     )
                     Tab.Recents -> RecentsScreen(
                         calls = calls,
+                        simCount = sims.size,
+                        onCallWithSim = { e, idx -> Sims.place(ctx, e.number, sims.getOrNull(idx)) },
                         onCall = { e -> Sims.place(ctx, e.number, e.sim?.let { sims.getOrNull(it - 1) }) },
                         onMessage = { e -> openChat(e.number, e.title, e.photoUri) }
                     )

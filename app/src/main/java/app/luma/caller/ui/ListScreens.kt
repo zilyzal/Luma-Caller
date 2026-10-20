@@ -1,7 +1,11 @@
 package app.luma.caller.ui
 
 import android.provider.CallLog
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -48,10 +52,13 @@ fun EmptyState(text: String) {
 @Composable
 fun RecentsScreen(
     calls: List<CallEntry>,
+    simCount: Int,
     onCall: (CallEntry) -> Unit,
+    onCallWithSim: (CallEntry, Int) -> Unit,
     onMessage: (CallEntry) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    var chooser by remember { mutableStateOf<CallEntry?>(null) }
     var query by rememberSaveable { mutableStateOf("") }
     val shown = remember(calls, query) {
         if (query.isBlank()) calls
@@ -65,20 +72,82 @@ fun RecentsScreen(
             }
         }
     }
-    Column(modifier.fillMaxSize().statusBarsPadding()) {
+    Box(modifier.fillMaxSize()) {
+    Column(Modifier.fillMaxSize().statusBarsPadding()) {
         SearchField(query, { query = it }, "Search calls and contacts", Modifier.padding(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 8.dp).fillMaxWidth())
         if (shown.isEmpty()) {
             EmptyState(if (calls.isEmpty()) "No recent calls" else "No matches")
         } else {
             LazyColumn(contentPadding = PaddingValues(bottom = ListBottomPadding)) {
-                items(shown, key = { it.id }) { call -> CallRow(call, onCall, onMessage) }
+                items(shown, key = { it.id }) { call ->
+                    CallRow(call, onCall, onMessage, onHold = if (simCount >= 2) ({ chooser = call }) else null)
+                }
+            }
+        }
+    }
+    chooser?.let { entry ->
+        SimChooser(
+            title = prettyNumber(entry.title),
+            onDismiss = { chooser = null },
+            onPick = { idx ->
+                chooser = null
+                onCallWithSim(entry, idx)
+            }
+        )
+    }
+    }
+}
+
+@Composable
+private fun SimChooser(title: String, onDismiss: () -> Unit, onPick: (Int) -> Unit) {
+    BackHandler(onBack = onDismiss)
+    Box(
+        Modifier
+            .fillMaxSize()
+            .background(Color(0x99000010))
+            .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null, onClick = onDismiss),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(
+            Modifier
+                .padding(horizontal = 28.dp)
+                .fillMaxWidth()
+                .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) {}
+                .glass(RoundedCornerShape(32.dp), fill = 0.18f, base = 0.8f, depth = 1.3f)
+                .padding(24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            LText("Call with", 20, FontWeight.SemiBold)
+            Spacer(Modifier.height(4.dp))
+            LText(title, 15, color = Color.White.copy(alpha = 0.7f), maxLines = 1)
+            Spacer(Modifier.height(20.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                SimOption("SIM 1", SimGreen, Modifier.weight(1f)) { onPick(0) }
+                SimOption("SIM 2", SimBlue, Modifier.weight(1f)) { onPick(1) }
             }
         }
     }
 }
 
 @Composable
-private fun CallRow(call: CallEntry, onCall: (CallEntry) -> Unit, onMessage: (CallEntry) -> Unit) {
+private fun SimOption(label: String, colors: List<Color>, modifier: Modifier, onClick: () -> Unit) {
+    val shape = RoundedCornerShape(28.dp)
+    Row(
+        modifier
+            .height(56.dp)
+            .pressable(shape = shape, onClick = onClick)
+            .gradientFill(colors, shape),
+        horizontalArrangement = Arrangement.Center,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        LumaIcon(LIcon.Call, size = 20.dp, strokeWidth = 2f)
+        Spacer(Modifier.width(8.dp))
+        LText(label, 16, FontWeight.Bold)
+    }
+}
+
+@Composable
+private fun CallRow(call: CallEntry, onCall: (CallEntry) -> Unit, onMessage: (CallEntry) -> Unit, onHold: (() -> Unit)?) {
     val label = when (call.type) {
         CallLog.Calls.OUTGOING_TYPE -> "Outgoing"
         CallLog.Calls.MISSED_TYPE -> "Missed"
@@ -86,7 +155,7 @@ private fun CallRow(call: CallEntry, onCall: (CallEntry) -> Unit, onMessage: (Ca
         else -> "Incoming"
     } + (call.sim?.let { " · SIM $it" } ?: "")
     Row(
-        Modifier.fillMaxWidth().height(72.dp).pressable { onCall(call) }.padding(horizontal = 20.dp),
+        Modifier.fillMaxWidth().height(72.dp).pressable(onLongClick = onHold) { onCall(call) }.padding(horizontal = 20.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Avatar(call.title, call.photoUri, 46.dp)
